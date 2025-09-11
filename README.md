@@ -1,2 +1,2 @@
-# Scoreboard-Control-System-
+# Scoreboard-Control-System
 Scoreboard Control System - веб-приложение для управления спортивным табло с реальным временем, системой голосования и интерактивным фоном. Поддерживает множественные подключения.
