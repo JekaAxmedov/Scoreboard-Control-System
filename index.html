@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Scoreboard System</title>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; overflow: hidden; }
+        video { 
+            width: 100vw; 
+            height: 100vh; 
+            object-fit: cover; 
+        }
+    </style>
+</head>
+<body>
+    <!--video id="introVideo" autoplay muted>
+        <source src="assets/intro-video.mp4" type="video/mp4">
+    </video -->#
+    <button onclick="window.location.href='control-panel.html'" 
+        style="font-size: 24px; padding: 20px;">
+    Нажмите чтобы начать
+</button>
+
+    <script>
+        const video = document.getElementById('introVideo');
+        
+        video.addEventListener('click', () => {
+            window.location.href = 'control-panel.html';
+        });
+        
+        video.addEventListener('ended', () => {
+            window.location.href = 'control-panel.html';
+        });
+    </script>
+</body>
+</html>

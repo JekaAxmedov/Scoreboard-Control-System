@@ -1,0 +1,287 @@
+/* Основное оформление */
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+    position: relative;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 10;
+}
+
+/* Отображение счёта и таймера */
+.score-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.team, .timer {
+    text-align: center;
+    flex: 1;
+}
+
+.timer h2 {
+    font-size: 2.5em;
+    margin: 0;
+}
+
+/* Кнопки управления */
+.controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+button {
+    padding: 15px;
+    border: none;
+    border-radius: 5px;
+    background: #007bff;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background: #0056b3;
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+/* Чекбокс */
+label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* === УПРАВЛЕНИЕ ФОНОМ === */
+
+/* Контейнер для фона (весь экран, под UI) */
+.background-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+    pointer-events: none; /* Родитель не ловит события */
+}
+
+/* Затемнение фона */
+.background-container::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3); /* Можно менять прозрачность */
+    z-index: 1;
+    pointer-events: none; /* Пропускает события дальше */
+}
+
+/* Само фоновое изображение */
+#backgroundImage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+    /* Важно для перетаскивания */
+    pointer-events: auto; /* 🔥 Разрешаем события, несмотря на родителя */
+    cursor: move;
+
+    /* Визуальные стили */
+    border: 3px dashed #6c757d;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    z-index: 2;
+
+    /* По умолчанию скрыто */
+    display: none;
+}
+
+/* Состояние при перетаскивании */
+#backgroundImage.dragging {
+    border-color: #ff5722;
+    box-shadow: 0 4px 12px rgba(255, 87, 34, 0.3);
+    opacity: 0.9;
+}
+
+/* Состояние при фиксации */
+#backgroundImage.fixed {
+    cursor: default;
+    opacity: 0.7;
+    border-style: solid;
+    border-color: #6c757d;
+    pointer-events: none; /* Блокируем при фиксации */
+}
+
+/* Блок управления фоном в интерфейсе */
+.background-controls {
+    margin: 20px 0;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+}
+
+.background-controls h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    text-align: center;
+    font-size: 1.3em;
+    margin-bottom: 15px;
+}
+
+.background-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.background-buttons button {
+    padding: 12px;
+    font-size: 14px;
+}
+
+.scale-controls {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.scale-controls button {
+    padding: 10px 15px;
+    font-size: 14px;
+    background: #17a2b8;
+}
+
+.scale-controls button:first-child:hover {
+    background: #138496;
+}
+
+.scale-controls button:last-child {
+    background: #28a745;
+}
+
+.scale-controls button:last-child:hover {
+    background: #218838;
+}
+
+#backgroundUpload {
+    display: none;
+}
+
+.background-status {
+    text-align: center;
+    font-size: 14px;
+    color: #6c757d;
+    margin-top: 10px;
+}
+
+/* === АДАПТИВНОСТЬ === */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    .score-display {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .controls {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .background-buttons {
+        grid-template-columns: 1fr;
+    }
+    
+    .scale-controls {
+        flex-direction: column;
+    }
+    
+    button {
+        padding: 12px;
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 480px) {
+    .controls {
+        grid-template-columns: 1fr;
+    }
+    
+    .timer h2 {
+        font-size: 2em;
+    }
+    
+    .background-controls {
+        padding: 15px;
+    }
+}
+
+/* === КНОПКА ФИКСАЦИИ === */
+#fixBackgroundBtn.fixed {
+    background: #dc3545;
+}
+
+#fixBackgroundBtn.fixed:hover {
+    background: #c82333;
+}
+
+/* === АНИМАЦИИ === */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse {
+    animation: pulse 0.5s ease-in-out;
+}
+
+/* === СООБЩЕНИЯ === */
+.error-message {
+    color: #dc3545;
+    text-align: center;
+    padding: 10px;
+    background: #f8d7da;
+    border-radius: 5px;
+    margin: 10px 0;
+    display: none;
+}
+
+.success-message {
+    color: #155724;
+    text-align: center;
+    padding: 10px;
+    background: #d4edda;
+    border-radius: 5px;
+    margin: 10px 0;
+    display: none;
+}

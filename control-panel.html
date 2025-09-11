@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <title>Control Panel</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Контейнер для фона -->
+    <div class="background-container" id="backgroundContainer">
+        <img id="backgroundImage" src="" alt="Фон" style="display: none;">
+    </div>
+
+    <div class="container">
+        <div class="score-display">
+            <div class="team">
+                <h2>Команда 1</h2>
+                <span id="team1Score">0</span>
+                <div>
+                    <button onclick="sendCommand('add_goal', {team: 1})">Гол</button>
+                    <button onclick="sendCommand('undo_goal', {team: 1})">Отмена</button>
+                </div>
+            </div>
+            
+            <div class="timer">
+                <h2 id="timerDisplay">00:00</h2>
+                <div id="halfIndicator">1 тайм</div>
+            </div>
+            
+            <div class="team">
+                <h2>Команда 2</h2>
+                <span id="team2Score">0</span>
+                <div>
+                    <button onclick="sendCommand('add_goal', {team: 2})">Гол</button>
+                    <button onclick="sendCommand('undo_goal', {team: 2})">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startHalf1" onclick="toggleHalf(1)">Старт 1 тайм</button>
+            <button id="startHalf2" onclick="toggleHalf(2)">Старт 2 тайм</button>
+            <button onclick="sendCommand('reset', {half: currentHalf})">Сброс</button>
+            <label>
+                <input type="checkbox" id="autoStop" onchange="sendCommand('toggle_auto_stop')">
+                Авто-стоп
+            </label>
+            <button id="muteBtn" onclick="sendCommand('toggle_mute')">Mute</button>
+        </div>
+        <div style="margin-top: 15px; display: flex; align-items: center; gap: 10px;">
+            <label>Установить время:</label>
+            <input type="text" id="timeInput" placeholder="ММ:СС" maxlength="5" style="width: 80px; padding: 8px; font-size: 1em;">
+            <button onclick="setCustomTime()" style="padding: 8px 12px;">Применить</button>
+        </div>
+
+        <!-- Управление фоном -->
+        <div class="background-controls">
+            <h3>Управление фоном</h3>
+            <input type="file" id="backgroundUpload" accept="image/*">
+            <button onclick="document.getElementById('backgroundUpload').click()">Выбрать фон</button>
+            <button id="fixBackgroundBtn" onclick="toggleBackgroundFixed()">Зафиксировать фон</button>
+            <div class="scale-controls">
+                <button onclick="scaleBackground(1.1)">+ Увеличить</button>
+                <button onclick="scaleBackground(0.9)">- Уменьшить</button>
+            </div>
+        </div>
+
+        <!-- Настройка шрифтов -->
+        <div class="font-controls" style="margin: 20px 0; padding: 20px; background: #e9ecef; border-radius: 10px;">
+            <h3>Настройка шрифтов</h3>
+
+            <div>
+                <label>Размер счёта: <input type="number" id="scoreSize" min="1" max="10" step="0.1" value="4"></label>
+                <button onclick="updateFontSize('teamScore', 'scoreSize')">Применить</button>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <label>Размер таймера: <input type="number" id="timerSize" min="1" max="10" step="0.1" value="6"></label>
+                <button onclick="updateFontSize('timer', 'timerSize')">Применить</button>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <label>Шрифт счёта:</label>
+                <select id="scoreFont"></select>
+                <button onclick="updateFontFamily('teamScore', 'scoreFont')">Применить</button>
+            </div>
+
+            <div style="margin-top: 10px;">
+                <label>Шрифт таймера:</label>
+                <select id="timerFont"></select>
+                <button onclick="updateFontFamily('timer', 'timerFont')">Применить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let currentHalf = 1;
+        let currentScale = 1.0;
+        let isBackgroundFixed = false;
+        let state = {};
+
+        function connect() {
+            ws = new WebSocket('ws://192.168.1.2:8080');
+            ws.onopen = () => console.log('Подключено');
+            ws.onmessage = handleMessage;
+            ws.onclose = () => setTimeout(connect, 1000);
+        }
+
+        function handleMessage(event) {
+            const data = JSON.parse(event.data);
+            switch (data.type) {
+                case 'full_state':
+                    updateUI(data.state);
+                    break;
+                case 'score_update':
+                    document.getElementById('team1Score').textContent = data.team1;
+                    document.getElementById('team2Score').textContent = data.team2;
+                    break;
+                case 'time_update':
+                    updateTimer(data.time);
+                    break;
+                case 'mute_state':
+                    document.getElementById('muteBtn').textContent = data.muted ? 'Unmute' : 'Mute';
+                    break;
+                case 'background_update':
+                    if (data.background.image) setupBackground(data.background);
+                    break;
+                case 'available_fonts':
+                    updateFontSelects(data.fonts);
+                    break;
+            }
+        }
+
+        function setCustomTime() {
+            const timeInput = document.getElementById('timeInput').value.trim();
+            const parts = timeInput.split(':');
+
+            if (parts.length !== 2) {
+                alert('Введите время в формате ММ:СС (например, 45:00 или 77:05)');
+                return;
+            }
+
+            const mins = parseInt(parts[0], 10);
+            const secs = parseInt(parts[1], 10);
+
+            if (isNaN(mins) || isNaN(secs) || mins < 0 || secs < 0 || secs >= 60) {
+                alert('Некорректное время. Минуты и секунды должны быть числами, секунды < 60.');
+                return;
+            }
+
+            // Конвертируем в секунды
+            const totalSeconds = mins * 60 + secs;
+
+            // Определяем тайм: если > 45:00 → 2-й тайм, иначе 1-й
+            const half = totalSeconds > 45 * 60 ? 2 : 1;
+
+            // Отправляем команду на сервер
+            sendCommand('set_custom_time', { time: totalSeconds, half });
+
+            // Опционально: сразу обновляем UI (для мгновенного отклика)
+            currentHalf = half;
+            updateTimer(totalSeconds);
+            const halfIndicator = document.getElementById('halfIndicator');
+            halfIndicator.textContent = half + ' тайм';
+        } 
+
+        function updateUI(newState) {
+            // Полностью обновляем UI на основе состояния
+            state = newState;
+            // Обновляем состояние тайма
+            currentHalf = newState.currentHalf;
+            // Обновляем кнопки старта/паузы тайма
+            const btn1 = document.getElementById('startHalf1');
+            const btn2 = document.getElementById('startHalf2');
+            const halfIndicator = document.getElementById('halfIndicator');
+            // Обновляем счёт и таймер
+            document.getElementById('team1Score').textContent = newState.team1Score;
+            document.getElementById('team2Score').textContent = newState.team2Score;
+            updateTimer(newState.time);
+            
+            // Обновляем остальные элементы управления
+            document.getElementById('autoStop').checked = newState.autoStop;
+            document.getElementById('muteBtn').textContent = newState.isMuted ? 'Unmute' : 'Mute';
+            
+            // Обновляем индикатор тайма
+            halfIndicator.textContent = currentHalf + (newState.timerRunning ? ' тайм (активен)' : ' тайм');
+
+            // Меняем текст кнопок в зависимости от активности тайма
+            btn1.textContent = (currentHalf === 1 && newState.timerRunning) ? 'Пауза 1 тайм' : 'Старт 1 тайм';
+            btn2.textContent = (currentHalf === 2 && newState.timerRunning) ? 'Пауза 2 тайм' : 'Старт 2 тайм';
+
+            // Блокируем кнопку активного тайма (чтобы нельзя было запустить его повторно)
+            //btn1.disabled = currentHalf === 1 && newState.timerRunning;
+            //btn2.disabled = currentHalf === 2 && newState.timerRunning;
+
+            if (newState.background?.image) setupBackground(newState.background);
+            if (newState.fontSettings) {
+                const fs = newState.fontSettings;
+                if (document.getElementById('scoreSize')) document.getElementById('scoreSize').value = fs.teamScore.fontSize;
+                if (document.getElementById('timerSize')) document.getElementById('timerSize').value = fs.timer.fontSize;
+
+                    // Добавить обновление выпадающих списков шрифтов
+                if (document.getElementById('scoreFont') && fs.teamScore.fontFamily)
+                    document.getElementById('scoreFont').value = fs.teamScore.fontFamily;
+                if (document.getElementById('timerFont') && fs.timer.fontFamily) 
+                    document.getElementById('timerFont').value = fs.timer.fontFamily;
+            }
+        }
+
+        function updateTimer(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function setupBackground(bg) {
+            const img = document.getElementById('backgroundImage');
+            img.src = bg.image;
+            img.style.display = 'block';
+            currentScale = bg.scale || 1.0;
+            img.style.transform = `scale(${currentScale})`;
+            updateBackgroundPosition(bg.position.x, bg.position.y);
+            updateBackgroundFixedState(bg.fixed);
+        }
+
+        function updateBackgroundPosition(x, y) {
+            const img = document.getElementById('backgroundImage');
+            img.style.left = x + 'px';
+            img.style.top = y + 'px';
+            img.style.position = 'absolute';
+        }
+
+        function updateBackgroundFixedState(fixed) {
+            isBackgroundFixed = fixed;
+            const img = document.getElementById('backgroundImage');
+            const btn = document.getElementById('fixBackgroundBtn');
+            if (fixed) {
+                img.classList.add('fixed');
+                btn.textContent = 'Разблокировать фон';
+            } else {
+                img.classList.remove('fixed');
+                btn.textContent = 'Зафиксировать фон';
+            }
+        }
+
+        function toggleBackgroundFixed() {
+            sendCommand('toggle_background_fixed');
+        }
+
+        function scaleBackground(factor) {
+            if (document.getElementById('backgroundImage').style.display !== 'none') {
+                currentScale *= factor;
+                document.getElementById('backgroundImage').style.transform = `scale(${currentScale})`;
+                sendCommand('update_background_size', { scale: currentScale });
+            }
+        }
+
+        // === Управление шрифтами ===
+        function updateFontSize(element, inputId) {
+            const size = document.getElementById(inputId).value;
+            sendCommand('update_font_size', { element, size });
+        }
+
+        function updateFontFamily(element, selectId) {
+            const fontFamily = document.getElementById(selectId).value;
+            sendCommand('update_font_family', { element, fontFamily });
+        }
+
+        function updateFontSelects(fonts) {
+            ['scoreFont', 'timerFont'].forEach(id => {
+                const select = document.getElementById(id);
+                if (!select) return;
+                select.innerHTML = '';
+                fonts.forEach(font => {
+                    const opt = document.createElement('option');
+                    opt.value = font.fontFamily;
+                    opt.textContent = font.fontFamily;
+                    select.appendChild(opt);
+                });
+            });
+
+            // Устанавливаем текущие
+            if (state.fontSettings) {
+                if (document.getElementById('scoreFont')) document.getElementById('scoreFont').value = state.fontSettings.teamScore.fontFamily;
+                if (document.getElementById('timerFont')) document.getElementById('timerFont').value = state.fontSettings.timer.fontFamily;
+            }
+        }
+
+        function sendCommand(cmd, params = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command: cmd, ...params }));
+            }
+        }
+
+        window.addEventListener('load', () => {
+            connect();
+            initDrag();
+            document.getElementById('backgroundUpload').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = e => sendCommand('set_background', {
+                        image: e.target.result,
+                        position: { x: 0, y: 0 },
+                        scale: 1.0,
+                        fixed: false
+                    });
+                    reader.readAsDataURL(file);
+                }
+            });
+        });
+
+        let isDragging = false;
+        let dragStartX, dragStartY;
+        let bgImage;
+
+        function initDrag() {
+            bgImage = document.getElementById('backgroundImage');
+            bgImage.addEventListener('mousedown', startDrag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('mouseup', stopDrag);
+        }
+
+        function startDrag(e) {
+            if (!isBackgroundFixed) {
+                isDragging = true;
+                dragStartX = e.clientX - bgImage.offsetLeft;
+                dragStartY = e.clientY - bgImage.offsetTop;
+                bgImage.style.cursor = 'grabbing';
+            }
+        }
+
+        function drag(e) {
+            if (isDragging && !isBackgroundFixed) {
+                const x = e.clientX - dragStartX;
+                const y = e.clientY - dragStartY;
+                bgImage.style.left = x + 'px';
+                bgImage.style.top = y + 'px';
+            }
+        }
+
+        function stopDrag() {
+            if (isDragging) {
+                isDragging = false;
+                bgImage.style.cursor = 'grab';
+                // Отправляем новую позицию на сервер
+                const x = parseInt(bgImage.style.left) || 0;
+                const y = parseInt(bgImage.style.top) || 0;
+                sendCommand('update_background_position', { x, y });
+            }
+        }
+        function toggleHalf(half) {
+            sendCommand('toggle_half', { half });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Control Panel</title>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Контейнер для фона (ПЕРВЫМ в body) -->
+    <div class="background-container" id="backgroundContainer">
+        <img id="backgroundImage" src="" alt="Фон" style="display: none; transform-origin: center;">
+    </div>
+
+    <div class="container">
+        <div class="score-display">
+            <div class="team">
+                <h2>Команда 1</h2>
+                <span id="team1Score">0</span>
+                <div>
+                    <button onclick="sendCommand('add_goal', {team: 1})">Гол</button>
+                    <button onclick="sendCommand('undo_goal', {team: 1})">Отмена</button>
+                </div>
+            </div>
+            
+            <div class="timer">
+                <h2 id="timerDisplay">00:00</h2>
+                <div id="halfIndicator">1 тайм</div>
+            </div>
+            
+            <div class="team">
+                <h2>Команда 2</h2>
+                <span id="team2Score">0</span>
+                <div>
+                    <button onclick="sendCommand('add_goal', {team: 2})">Гол</button>
+                    <button onclick="sendCommand('undo_goal', {team: 2})">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="startHalf1" onclick="sendCommand('start_half', {half: 1})">Старт 1 тайм</button>
+            <button id="startHalf2" onclick="sendCommand('start_half', {half: 2})">Старт 2 тайм</button>
+            <button onclick="sendCommand('reset', {half: currentHalf})">Сброс</button>
+            
+            <label>
+                <input type="checkbox" id="autoStop" onchange="sendCommand('toggle_auto_stop')">
+                Авто-стоп
+            </label>
+            
+            <button id="muteBtn" onclick="sendCommand('toggle_mute')">Mute</button>
+        </div>
+
+        <!-- Блок управления фоном -->
+        <div class="background-controls">
+            <h3>Управление фоном</h3>
+            
+            <input type="file" id="backgroundUpload" accept="image/*">
+            <button onclick="document.getElementById('backgroundUpload').click()">Выбрать фон</button>
+            <button id="fixBackgroundBtn" onclick="toggleBackgroundFixed()">Зафиксировать фон</button>
+            
+            <div class="scale-controls">
+                <button onclick="scaleBackground(1.1)">+ Увеличить</button>
+                <button onclick="scaleBackground(0.9)">- Уменьшить</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws;
+        let currentHalf = 1;
+        let backgroundImage = null;
+        let isDragging = false;
+        let startX, startY;
+        let startPosX, startPosY;
+        let currentScale = 1.0;
+        let isBackgroundFixed = false;
+        
+        function connect() {
+            ws = new WebSocket('ws://192.168.1.4:8080');
+            
+            ws.onopen = () => console.log('Connected to server');
+            ws.onmessage = handleMessage;
+            ws.onclose = () => setTimeout(connect, 1000);
+        }
+        
+        function handleMessage(event) {
+            const data = JSON.parse(event.data);
+            
+            switch (data.type) {
+                case 'full_state':
+                    updateUI(data.data);
+                    break;
+                case 'score_update':
+                    document.getElementById('team1Score').textContent = data.team1;
+                    document.getElementById('team2Score').textContent = data.team2;
+                    break;
+                case 'time_update':
+                    updateTimer(data.time);
+                    break;
+                case 'mute_state':
+                    document.getElementById('muteBtn').textContent = data.muted ? 'Unmute' : 'Mute';
+                    break;
+                case 'background_update':
+                    if (data.background && data.background.image) {
+                        setupBackground(data.background);
+                    }
+                    break;
+                case 'background_position_update':
+                    updateBackgroundPosition(data.position.x, data.position.y);
+                    break;
+                case 'background_size_update':
+                    currentScale = data.scale;
+                    document.getElementById('backgroundImage').style.transform = `scale(${currentScale})`;
+                    break;
+                case 'background_fixed_update':
+                    isBackgroundFixed = data.fixed;
+                    updateBackgroundFixedState(data.fixed);
+                    break;
+            }
+        }
+        
+        function setupBackground(background) {
+            const img = document.getElementById('backgroundImage');
+            img.src = background.image;
+            img.style.display = 'block';
+            // Устанавливаем позицию
+            img.style.left = (background.position?.x || 0) + 'px';
+            img.style.top = (background.position?.y || 0) + 'px';
+            img.style.position = 'absolute';
+            
+            currentScale = background.scale || 1.0;
+            img.style.transform = `scale(${currentScale})`;
+            img.style.transformOrigin = 'center';
+            
+            updateBackgroundPosition(background.position.x, background.position.y);
+            updateBackgroundFixedState(background.fixed);
+            
+            setupBackgroundEvents();
+        }
+        
+        function setupBackgroundEvents() {
+            const img = document.getElementById('backgroundImage');
+            
+            document.getElementById('backgroundUpload').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        sendCommand('set_background', {
+                            image: e.target.result,
+                            position: { x: 0, y: 0 },
+                            scale: 1.0,
+                            fixed: false
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+            
+            img.addEventListener('mousedown', startDrag);
+            img.addEventListener('touchstart', startDragTouch, { passive: false });
+        }
+        
+        function startDrag(e) {
+            if (!isBackgroundFixed) {
+                isDragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+
+                const img = document.getElementById('backgroundImage');
+        
+                // Если left/top не заданы — установим в 0
+                const currentLeft = parseInt(img.style.left) || 0;
+                const currentTop = parseInt(img.style.top) || 0;
+
+                startPosX = currentLeft;
+                startPosY = currentTop;
+
+                img.classList.add('dragging');
+                document.getElementById('backgroundContainer').classList.add('active');
+                e.preventDefault();
+            }
+        }
+        
+        function startDragTouch(e) {
+            if (!isBackgroundFixed && e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                startPosX = parseInt(document.getElementById('backgroundImage').style.left) || 0;
+                startPosY = parseInt(document.getElementById('backgroundImage').style.top) || 0;
+                document.getElementById('backgroundImage').classList.add('dragging');
+                document.getElementById('backgroundContainer').classList.add('active');
+                e.preventDefault();
+            }
+        }
+        
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('touchmove', dragTouch, { passive: false });
+        document.addEventListener('mouseup', stopDrag);
+        document.addEventListener('touchend', stopDrag);
+        
+        function drag(e) {
+            if (isDragging && !isBackgroundFixed) {
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+                updateBackgroundPosition(startPosX + dx, startPosY + dy);
+                e.preventDefault();
+            }
+        }
+        
+        function dragTouch(e) {
+            if (isDragging && !isBackgroundFixed && e.touches.length === 1) {
+                const dx = e.touches[0].clientX - startX;
+                const dy = e.touches[0].clientY - startY;
+                updateBackgroundPosition(startPosX + dx, startPosY + dy);
+                e.preventDefault();
+            }
+        }
+        
+        function stopDrag() {
+            if (isDragging) {
+                isDragging = false;
+                const img = document.getElementById('backgroundImage');
+                const x = parseInt(img.style.left) || 0;
+                const y = parseInt(img.style.top) || 0;
+                
+                sendCommand('update_background_position', {
+                    position: { x, y }
+                });
+                
+                img.classList.remove('dragging');
+                document.getElementById('backgroundContainer').classList.remove('active');
+            }
+        }
+        
+        function updateBackgroundPosition(x, y) {
+            const img = document.getElementById('backgroundImage');
+            img.style.left = x + 'px';
+            img.style.top = y + 'px';
+            img.style.position = 'absolute';
+            img.style.transform = `scale(${currentScale})`; // масштаб отдельно
+        }
+        
+        function scaleBackground(factor) {
+            const img = document.getElementById('backgroundImage');
+            if (img.style.display === 'none') return;
+            currentScale *= factor;
+            if (currentScale < 0.5) currentScale = 0.5;  // мин. масштаб
+            if (currentScale > 3.0) currentScale = 3.0;  // макс. масштаб
+
+            img.style.transform = `scale(${currentScale})`;
+
+
+            sendCommand('update_background_size', {
+                scale: currentScale
+            });
+        }
+        
+        function toggleBackgroundFixed() {
+            sendCommand('toggle_background_fixed');
+        }
+        
+        function updateBackgroundFixedState(fixed) {
+            isBackgroundFixed = fixed;
+            const img = document.getElementById('backgroundImage');
+            const btn = document.getElementById('fixBackgroundBtn');
+            
+            if (fixed) {
+                img.classList.add('fixed');
+                btn.textContent = 'Разблокировать фон';
+                document.getElementById('backgroundContainer').classList.remove('active');
+            } else {
+                img.classList.remove('fixed');
+                btn.textContent = 'Зафиксировать фон';
+            }
+        }
+        
+        function sendCommand(command, params = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ command, ...params }));
+            }
+        }
+        
+        function updateTimer(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function updateUI(state) {
+            document.getElementById('team1Score').textContent = state.team1Score;
+            document.getElementById('team2Score').textContent = state.team2Score;
+            updateTimer(state.time);
+            document.getElementById('autoStop').checked = state.autoStop;
+            document.getElementById('muteBtn').textContent = state.isMuted ? 'Unmute' : 'Mute';
+            currentHalf = state.currentHalf;
+            
+            if (state.background) {
+                setupBackground(state.background);
+            }
+        }
+        
+        window.addEventListener('load', function() {
+            connect();
+            setupBackgroundEvents();
+        });
+    </script>
+</body>
+</html>
