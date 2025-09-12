@@ -180,7 +180,7 @@
         </div>
 
         <!-- Управление позицией фона -->
-        <details class="background-position-controls" style="margin-top: 15px; background: #f8f9fa; border-radius: 8px;">
+        <details class="background-position-controls" data-interactive style="margin-top: 15px; background: #f8f9fa; border-radius: 8px;">
             <summary style="padding: 10px; cursor: pointer; font-weight: bold;">Управление позицией фона</summary>
             <div style="padding: 15px; display: flex; flex-direction: column; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -790,39 +790,51 @@
                     return;
                 }
             }
+
+            // ❌ Проверка 3: data-interactive (новое!)
+            if (target.closest('[data-interactive]')) {
+                return;
+            }
         //Если дошли сюда — начинаем drag
             startDrag(e);
         }
-
+        // touch версия
         function handleTouchStart(e) {
             if (!e.touches?.[0] || isBackgroundFixed) return;
-
+            // Проверка e.touches[0].target УДАЛЕНА — клик в любом месте экрана начнёт drag!
+            // Получаем цель события
             const target = e.touches[0].target;
-
+            // ❌ Игнорируем клики на интерактивных элементах
             const interactiveElements = [
                 'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'LABEL',
                 'A', 'VIDEO', 'AUDIO', 'CANVAS', 'IFRAME'
             ];
-
+            // ❌ Игнорируем элементы с определёнными классами (если нужно)
+            // (копипаста из mouse)
             const interactiveClasses = [
                 '.font-controls', '.background-controls', '.controls',
                 '.score-display', '.connection-indicator', '.error-message',
                 '.success-message', '.timer', '.team'
             ];
-
+            // Проверяем тег
             if (interactiveElements.includes(target.tagName)) {
                 return;
             }
-
+            // Проверяем классы
             for (let cls of interactiveClasses) {
                 if (target.closest(cls)) {
                     return;
                 }
             }
+
+            // ❌ Проверка data-interactive
+            if (target.closest('[data-interactive]')) {
+                return;
+            }
         //Если дошли сюда — начинаем drag xD x2 Javohir?
             startDrag(e);
         }
-
+        // Начало перетаскивания
         function startDrag(e) {
             e.preventDefault();
             isDragging = true;
@@ -845,7 +857,7 @@
                 hitLayer.classList.add('dragging');
             }
         }
-
+        // Окончание перетаскивания
         function stopDrag() {
             if (isDragging) {
                 isDragging = false;
@@ -866,7 +878,7 @@
                 }
             }
         }
-
+        // Throttle для drag
         const throttledDrag = throttle((e) => {
             if (!isDragging || isBackgroundFixed) return; // 👈 Главный флаг!
             
