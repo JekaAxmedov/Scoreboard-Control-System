@@ -19,7 +19,7 @@ Git for Windows  https://gitforwindows.org
 GitHub Desktop https://desktop.github.com
 
 # 1. Склонировать репозиторий
-git clone https://github.com/Jetraidget/Scoreboard-Control-System.git  
+git clone https://github.com/JekaAxmedov/Scoreboard-Control-System.git  
 cd Scoreboard-Control-System
 
 # 2. Установить зависимости
