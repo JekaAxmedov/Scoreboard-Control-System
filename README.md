@@ -28,6 +28,6 @@ npm install
 # 3. Запустить сервер
 npm start
 
-Откройте: http://localhost:8080 счет и таймер
+Откройте: http://localhost:8080 счет и таймер  
 http://localhost:8080/control-panel.html управление таблом //нужна доработка  
 http://localhost:8080/scoreboard.html доп. счет и таймер
