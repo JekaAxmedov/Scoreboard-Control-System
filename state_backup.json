@@ -1,8 +1,8 @@
 {
-  "team1Score": 1,
-  "team2Score": 1,
-  "time": 867,
-  "timerRunning": false,
+  "team1Score": 0,
+  "team2Score": 0,
+  "time": 911,
+  "timerRunning": true,
   "currentHalf": 1,
   "autoStop": true,
   "isMuted": false,
@@ -43,6 +43,6 @@
       "fontFamily": "PFAgoraSlabProBold"
     }
   },
-  "timestamp": "2025-09-12T12:14:47.432Z",
+  "timestamp": "2025-09-12T13:32:05.676Z",
   "version": "2.0"
 }
