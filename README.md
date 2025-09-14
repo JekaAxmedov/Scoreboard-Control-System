@@ -12,6 +12,10 @@ Node.js 18+
 
 https://nodejs.org/en
 
+Для удобства Visual Studio Code  
+
+https://code.visualstudio.com/
+
 Git, например:
 
 стандартный Git с https://git-scm.com  
@@ -28,6 +32,6 @@ npm install
 # 3. Запустить сервер
 npm start
 
-Откройте: http://localhost:8080 счет и таймер  
+http://localhost:8080 счет и таймер  
 http://localhost:8080/control-panel.html управление таблом //нужна доработка  
 http://localhost:8080/scoreboard.html доп. счет и таймер
