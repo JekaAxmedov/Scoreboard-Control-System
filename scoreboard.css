@@ -1,0 +1,53 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #000;
+    color: white;
+    overflow: hidden;
+    position: relative;
+}
+
+#backgroundImage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 1;
+    transition: opacity 0.5s ease;
+    opacity: 1;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2;
+}
+
+.scoreboard {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Перемещаемые элементы */
+.draggable {
+    position: absolute;
+    user-select: none;
+    cursor: grab;
+    text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.9);
+    transition: transform 0.1s;
+    padding: 5px;
+    border-radius: 8px;
+}
+
+.draggable:active {
+    cursor: grabbing;
+}

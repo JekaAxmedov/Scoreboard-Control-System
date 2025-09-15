@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const CONFIG = require('./config');
+const CONFIG = require('./Javascripts/config');
 
 // Утилита для throttling
 function throttle(func, limit) {

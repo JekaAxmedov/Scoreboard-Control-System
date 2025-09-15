@@ -1,0 +1,191 @@
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+}
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #000;
+    color: white;
+    overflow: hidden;
+    position: relative;
+    user-select: none;
+}
+
+#backgroundImage {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    object-fit: cover;
+    z-index: 1;
+    transition: opacity 0.5s ease;
+    opacity: 1;
+}
+
+.overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 2;
+}
+
+.scoreboard {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    height: 100vh;
+}
+
+/* Перемещаемые элементы */
+.draggable {
+    position: absolute;
+    user-select: none;
+    cursor: grab;
+    text-shadow: 3px 3px 12px rgba(0, 0, 0, 0.9);
+    transition: transform 0.2s ease;
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    font-weight: bold;
+}
+
+.draggable:active {
+    cursor: grabbing;
+    transform: scale(1.05);
+}
+
+.draggable:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Специальные стили для разных элементов */
+#team1Score, #team2Score {
+    font-size: 4em;
+    color: #ffffff;
+    min-width: 120px;
+    text-align: center;
+}
+
+#timerDisplay {
+    font-size: 6em;
+    color: #ffff00;
+    text-align: center;
+    min-width: 200px;
+    font-family: 'Courier New', monospace;
+}
+
+#halfIndicator {
+    font-size: 1.8em;
+    color: #ffffff;
+    opacity: 0.9;
+    text-align: center;
+    padding: 12px 24px;
+}
+
+/* Анимации */
+@keyframes scoreUpdate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); color: #00ff00; }
+    100% { transform: scale(1); }
+}
+
+.score-animation {
+    animation: scoreUpdate 0.5s ease-in-out;
+}
+
+@keyframes timerPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+.timer-warning {
+    animation: timerPulse 1s infinite;
+    color: #ff4444 !important;
+}
+
+/* Индикатор соединения для табло */
+.connection-status {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.9em;
+    font-weight: bold;
+    z-index: 1000;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.connection-status.connected {
+    background: rgba(40, 167, 69, 0.8);
+    color: white;
+}
+
+.connection-status.connecting {
+    background: rgba(255, 193, 7, 0.8);
+    color: black;
+    animation: pulse 1.5s infinite;
+}
+
+.connection-status.disconnected {
+    background: rgba(220, 53, 69, 0.8);
+    color: white;
+    animation: shake 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    #team1Score, #team2Score {
+        font-size: 3em;
+        min-width: 100px;
+    }
+    
+    #timerDisplay {
+        font-size: 4em;
+        min-width: 160px;
+    }
+    
+    #halfIndicator {
+        font-size: 1.4em;
+        padding: 8px 16px;
+    }
+    
+    .draggable {
+        padding: 6px 12px;
+    }
+}
+
+/* Специальные эффекты */
+.glow {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+}
+
+.team1-color {
+    color: #007bff;
+}
+
+.team2-color {
+    color: #dc3545;
+}
