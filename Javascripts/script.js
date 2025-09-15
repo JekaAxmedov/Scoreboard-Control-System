@@ -31,11 +31,57 @@ let analyser = null;
 let dataArray = null;
 let source = null;
 
-const AMBILIGHT_FPS = 10;
-const AUDIO_FPS = 20;
+// Мобильная оптимизация: детекция устройства
+const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                  window.innerWidth <= 768;
+
+const isLowEndDevice = () => {
+  return navigator.hardwareConcurrency <= 4 || 
+         navigator.deviceMemory <= 4 || 
+         /Android.*[45]\./i.test(navigator.userAgent);
+};
+
+// Адаптивные настройки FPS в зависимости от устройства
+let AMBILIGHT_FPS, AUDIO_FPS, CANVAS_SIZE;
+
+if (isMobile) {
+  if (isLowEndDevice()) {
+    AMBILIGHT_FPS = 6;  // Очень низкий FPS для слабых устройств
+    AUDIO_FPS = 10;
+    CANVAS_SIZE = 6;    // Минимальный размер canvas
+  } else {
+    AMBILIGHT_FPS = 8;  // Средний FPS для обычных мобильных
+    AUDIO_FPS = 15;
+    CANVAS_SIZE = 8;
+  }
+} else {
+  AMBILIGHT_FPS = 12; // Высокий FPS для десктопа
+  AUDIO_FPS = 20;
+  CANVAS_SIZE = 10;
+}
+
 let lastAmbilightUpdate = 0;
 let lastAudioUpdate = 0;
 let lastBassPeak = 0;
+
+// Кэш для цветов амбилайта
+let colorCache = null;
+let cacheTime = 0;
+const CACHE_DURATION = isMobile ? 200 : 100; // Дольше кэшируем на мобильных
+
+// Throttled функции для мобильных устройств
+const throttle = (func, limit) => {
+  let inThrottle;
+  return function() {
+    const args = arguments;
+    const context = this;
+    if (!inThrottle) {
+      func.apply(context, args);
+      inThrottle = true;
+      setTimeout(() => inThrottle = false, limit);
+    }
+  }
+};
 
 function initVideoIndicators() {
   videoSources.forEach((_, index) => {
@@ -93,6 +139,9 @@ function switchToVideo(index) {
 
       isTransitioning = false;
       video.removeEventListener('loadeddata', handleNewVideoLoad);
+      
+      // Сброс кэша цветов при переключении видео
+      colorCache = null;
     };
 
     video.addEventListener('loadeddata', handleNewVideoLoad);
@@ -127,9 +176,12 @@ initVideoIndicators();
 video.src = videoSources[currentVideoIndex];
 video.volume = 0.1;
 
-volumeSlider.addEventListener('input', () => {
-  video.volume = volumeSlider.value;
-});
+// Throttled обработчик для мобильных
+const handleVolumeChange = isMobile ? 
+  throttle(() => { video.volume = volumeSlider.value; }, 50) :
+  () => { video.volume = volumeSlider.value; };
+
+volumeSlider.addEventListener('input', handleVolumeChange);
 
 function initAudioAnalysis() {
   try {
@@ -138,113 +190,193 @@ function initAudioAnalysis() {
     source = audioContext.createMediaElementSource(video);
     source.connect(analyser);
     analyser.connect(audioContext.destination);
-    analyser.fftSize = 256;
+    
+    // Меньше данных для анализа на мобильных
+    analyser.fftSize = isMobile ? 128 : 256;
     dataArray = new Uint8Array(analyser.frequencyBinCount);
-    bassIndicator.style.display = 'block';
+    
+    // Скрываем индикатор басов на слабых устройствах
+    if (!isLowEndDevice()) {
+      bassIndicator.style.display = 'block';
+    }
   } catch (error) {
     console.warn('Web Audio API недоступен:', error);
   }
 }
 
 function analyzeBass() {
-  if (!analyser || video.paused || video.ended) return;
+  // Отключаем анализ басов на очень слабых устройствах
+  if (isLowEndDevice() || !analyser || video.paused || video.ended) return;
 
   analyser.getByteFrequencyData(dataArray);
   let bassSum = 0;
-  const bassRange = Math.floor(dataArray.length * 0.15);
+  const bassRange = Math.floor(dataArray.length * 0.1); // Меньший диапазон для анализа
+  
   for (let i = 0; i < bassRange; i++) {
     bassSum += dataArray[i];
   }
 
   const bassLevel = (bassSum / bassRange) / 255;
-  const isBassPeak = bassLevel > 0.4;
+  const isBassPeak = bassLevel > 0.45; // Повышен порог для меньшего количества срабатываний
 
-  if (isBassPeak && (Date.now() - lastBassPeak > 150)) {
+  const now = Date.now();
+  const minInterval = isMobile ? 200 : 150; // Больший интервал для мобильных
+
+  if (isBassPeak && (now - lastBassPeak > minInterval)) {
     ambilightGlow.classList.add('bass-pulse');
-    lastBassPeak = Date.now();
-  } else if (!isBassPeak && ambilightGlow.classList.contains('bass-pulse')) {
+    lastBassPeak = now;
+    
+    // Автоматически убираем класс через время на мобильных
+    if (isMobile) {
+      setTimeout(() => {
+        ambilightGlow.classList.remove('bass-pulse');
+      }, 150);
+    }
+  } else if (!isBassPeak && !isMobile && ambilightGlow.classList.contains('bass-pulse')) {
     ambilightGlow.classList.remove('bass-pulse');
   }
 
-  bassIndicator.classList.toggle('bass-active', isBassPeak);
-  bassIndicator.textContent = `🎵 Bass: ${Math.round(bassLevel * 100)}%`;
+  if (!isLowEndDevice()) {
+    bassIndicator.classList.toggle('bass-active', isBassPeak);
+    bassIndicator.textContent = `🎵 Bass: ${Math.round(bassLevel * 100)}%`;
+  }
 }
 
+// Оптимизированная функция получения цветов
 function getVideoColors() {
-    if (!video.videoWidth || !video.videoHeight) return null;
+  if (!video.videoWidth || !video.videoHeight) return null;
 
-    // Установите размер холста на минимальный, например, 10x10 пикселей.
-    // Это ускорит операцию getImageData.
-    hiddenCanvas.width = 10;
-    hiddenCanvas.height = 10;
-    ctx.drawImage(video, 0, 0, hiddenCanvas.width, hiddenCanvas.height);
+  const now = Date.now();
+  
+  // Используем кэш для мобильных устройств
+  if (colorCache && (now - cacheTime) < CACHE_DURATION) {
+    return colorCache;
+  }
 
-    // Получаем данные пикселей
-    const data = ctx.getImageData(0, 0, hiddenCanvas.width, hiddenCanvas.height).data;
+  // Динамический размер canvas в зависимости от устройства
+  hiddenCanvas.width = CANVAS_SIZE;
+  hiddenCanvas.height = CANVAS_SIZE;
+  
+  // Отключаем сглаживание для улучшения производительности
+  ctx.imageSmoothingEnabled = false;
+  
+  try {
+    ctx.drawImage(video, 0, 0, CANVAS_SIZE, CANVAS_SIZE);
+    const data = ctx.getImageData(0, 0, CANVAS_SIZE, CANVAS_SIZE).data;
 
+    const centerPoint = Math.floor(CANVAS_SIZE / 2);
+    const maxPoint = CANVAS_SIZE - 1;
+    
     const getPixelColor = (x, y) => {
-        const index = (Math.floor(y) * hiddenCanvas.width + Math.floor(x)) * 4;
-        return [data[index], data[index + 1], data[index + 2]];
+      const safeX = Math.min(Math.max(0, Math.floor(x)), maxPoint);
+      const safeY = Math.min(Math.max(0, Math.floor(y)), maxPoint);
+      const index = (safeY * CANVAS_SIZE + safeX) * 4;
+      return [data[index], data[index + 1], data[index + 2]];
     };
 
-    // Собираем цвета с ключевых точек:
     const colors = {
-        top: getPixelColor(4, 0),       // Сверху
-        bottom: getPixelColor(4, 9),    // Снизу
-        left: getPixelColor(0, 4),      // Слева
-        right: getPixelColor(9, 4),     // Справа
-        center: getPixelColor(4, 4)     // В центре
+      top: getPixelColor(centerPoint, 0),
+      bottom: getPixelColor(centerPoint, maxPoint),
+      left: getPixelColor(0, centerPoint),
+      right: getPixelColor(maxPoint, centerPoint),
+      center: getPixelColor(centerPoint, centerPoint)
     };
     
+    // Кэшируем результат
+    colorCache = colors;
+    cacheTime = now;
+    
     return colors;
+  } catch (error) {
+    console.warn('Ошибка при получении цветов видео:', error);
+    return colorCache; // Возвращаем кэшированные данные при ошибке
+  }
 }
 
+// Более эффективная функция обновления амбилайта
 function updateAmbilight() {
   const colors = getVideoColors();
   if (!colors) return;
 
+  // Уменьшенная насыщенность для мобильных устройств для экономии GPU
+  const saturationMultiplier = isMobile ? 1.4 : 1.8;
+  const brightnessMultiplier = isMobile ? 1.1 : 1.2;
+
   const enhanceColor = (color) => {
-    const saturation = 1.8;
-    const brightness = 1.2;
     return [
-      Math.min(255, Math.round(color[0] * saturation * brightness)),
-      Math.min(255, Math.round(color[1] * saturation * brightness)),
-      Math.min(255, Math.round(color[2] * saturation * brightness))
+      Math.min(255, Math.round(color[0] * saturationMultiplier * brightnessMultiplier)),
+      Math.min(255, Math.round(color[1] * saturationMultiplier * brightnessMultiplier)),
+      Math.min(255, Math.round(color[2] * saturationMultiplier * brightnessMultiplier))
     ];
   };
 
-  const enhancedColors = Object.fromEntries(
-    Object.entries(colors).map(([key, value]) => [key, enhanceColor(value)])
-  );
-  
-  rootStyle.setProperty('--ambilight-top-color', `rgba(${enhancedColors.top.join(', ')}, 0.7)`);
-  rootStyle.setProperty('--ambilight-bottom-color', `rgba(${enhancedColors.bottom.join(', ')}, 0.7)`);
-  rootStyle.setProperty('--ambilight-left-color', `rgba(${enhancedColors.left.join(', ')}, 0.7)`);
-  rootStyle.setProperty('--ambilight-right-color', `rgba(${enhancedColors.right.join(', ')}, 0.7)`);
-  rootStyle.setProperty('--ambilight-center-color', `rgba(${enhancedColors.center.join(', ')}, 0.9)`);
+  // Используем requestAnimationFrame для плавного обновления CSS переменных
+  const updateCSSVariables = () => {
+    const enhancedColors = {};
+    Object.entries(colors).forEach(([key, value]) => {
+      enhancedColors[key] = enhanceColor(value);
+    });
+    
+    // Уменьшенная прозрачность на мобильных для экономии ресурсов
+    const opacity = isMobile ? 0.5 : 0.7;
+    const centerOpacity = isMobile ? 0.7 : 0.9;
+    
+    rootStyle.setProperty('--ambilight-top-color', `rgba(${enhancedColors.top.join(', ')}, ${opacity})`);
+    rootStyle.setProperty('--ambilight-bottom-color', `rgba(${enhancedColors.bottom.join(', ')}, ${opacity})`);
+    rootStyle.setProperty('--ambilight-left-color', `rgba(${enhancedColors.left.join(', ')}, ${opacity})`);
+    rootStyle.setProperty('--ambilight-right-color', `rgba(${enhancedColors.right.join(', ')}, ${opacity})`);
+    rootStyle.setProperty('--ambilight-center-color', `rgba(${enhancedColors.center.join(', ')}, ${centerOpacity})`);
+  };
+
+  if (isMobile) {
+    // На мобильных обновляем сразу без дополнительного RAF
+    updateCSSVariables();
+  } else {
+    // На десктопе используем RAF для плавности
+    requestAnimationFrame(updateCSSVariables);
+  }
 }
 
+// Оптимизированная функция анимации
 function animate(timestamp) {
   if (!video.paused && !video.ended && videoLoaded) {
-    if (timestamp - lastAmbilightUpdate > (1000 / AMBILIGHT_FPS)) {
+    const ambilightInterval = 1000 / AMBILIGHT_FPS;
+    const audioInterval = 1000 / AUDIO_FPS;
+    
+    if (timestamp - lastAmbilightUpdate > ambilightInterval) {
       lastAmbilightUpdate = timestamp;
       updateAmbilight();
     }
-    if (timestamp - lastAudioUpdate > (1000 / AUDIO_FPS)) {
+    
+    if (timestamp - lastAudioUpdate > audioInterval) {
       lastAudioUpdate = timestamp;
       analyzeBass();
     }
   }
-  requestAnimationFrame(animate);
+  
+  // Используем более эффективный способ для следующего кадра
+  if (isAmbilightRunning) {
+    requestAnimationFrame(animate);
+  }
 }
 
 function startAmbilightAndAudio() {
   if (isAmbilightRunning) return;
   isAmbilightRunning = true;
-  if (!audioContext) initAudioAnalysis();
+  
+  if (!audioContext && !isLowEndDevice()) {
+    initAudioAnalysis();
+  }
+  
   requestAnimationFrame(animate);
 }
 
+function stopAmbilight() {
+  isAmbilightRunning = false;
+  colorCache = null; // Очищаем кэш при остановке
+}
+
+// Обработчики событий видео
 video.addEventListener('loadeddata', () => {
   videoLoaded = true;
   loadingOverlay.style.opacity = '0';
@@ -260,9 +392,34 @@ video.addEventListener('loadeddata', () => {
   });
 });
 
+video.addEventListener('pause', () => {
+  if (isMobile) {
+    stopAmbilight(); // Останавливаем амбилайт при паузе на мобильных
+  }
+});
+
+video.addEventListener('play', () => {
+  if (isMobile && videoLoaded) {
+    startAmbilightAndAudio(); // Возобновляем при воспроизведении
+  }
+});
+
 video.addEventListener('error', (e) => {
   console.error('Ошибка загрузки видео:', e);
   showFallback();
+});
+
+// Обработка видимости страницы для экономии ресурсов
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (isMobile) {
+      stopAmbilight();
+    }
+  } else {
+    if (isMobile && videoLoaded && !video.paused) {
+      startAmbilightAndAudio();
+    }
+  }
 });
 
 setTimeout(() => {
@@ -300,17 +457,53 @@ function showVideoControls() {
 }
 
 btn.addEventListener('click', () => {
+  stopAmbilight(); // Останавливаем амбилайт перед переходом
   splash.classList.add('fade-out');
   setTimeout(() => {
-    window.location.href = 'main.html';
+    window.location.href = 'control-panel.html';
   }, 1000);
 });
 
-document.addEventListener('click', async function() {
+// Оптимизированный обработчик кликов
+document.addEventListener('click', async function(e) {
+  // Throttle для мобильных устройств
+  if (isMobile && e.target.tagName !== 'BUTTON') {
+    return;
+  }
+  
   if (audioContext && audioContext.state === 'suspended') {
     await audioContext.resume().catch(console.warn);
   }
   if (videoLoaded && video.paused) {
     video.play().catch(console.warn);
+  }
+});
+
+// Дополнительная оптимизация для мобильных: отключение контекстного меню
+if (isMobile) {
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  
+  // Предотвращение случайного масштабирования
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 1) {
+      e.preventDefault();
+    }
+  }, { passive: false });
+  
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+    lastTouchEnd = now;
+  }, false);
+}
+
+// Финальная оптимизация: освобождение ресурсов при закрытии страницы
+window.addEventListener('beforeunload', () => {
+  stopAmbilight();
+  if (audioContext) {
+    audioContext.close().catch(console.warn);
   }
 });

@@ -17,6 +17,13 @@ html, body {
   width: 100%;
   font-family: 'Arial', sans-serif;
   overflow: hidden;
+  /* Мобильная оптимизация */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #splash {
@@ -32,6 +39,9 @@ html, body {
   align-items: center;
   opacity: 1;
   transition: opacity 1s ease-out;
+  /* GPU ускорение */
+  will-change: opacity;
+  transform: translateZ(0);
 }
 
 #videoWrapper {
@@ -39,9 +49,12 @@ html, body {
   width: 85%;
   max-width: 1800px;
   aspect-ratio: 16/9;
+  /* GPU ускорение */
+  transform: translateZ(0);
+  will-change: transform;
 }
 
-/* Амбилайт подсветка от видео */
+/* Амбилайт подсветка от видео - оптимизировано для мобильных */
 .ambilight-glow {
   position: absolute;
   top: -100px;
@@ -49,12 +62,19 @@ html, body {
   right: -100px;
   bottom: -100px;
   border-radius: 40px;
-  filter: blur(80px) brightness(1.2);
   opacity: 1;
-  transition: all 0.1s ease;
   z-index: 0;
-  transform-origin: center;
   pointer-events: none;
+  
+  /* Оптимизированные переходы для мобильных */
+  transition: all 0.15s ease;
+  transform-origin: center;
+  will-change: background, filter, transform;
+  transform: translateZ(0);
+  
+  /* Упрощенный фильтр для мобильных устройств */
+  filter: blur(80px) brightness(1.2);
+  
   background: radial-gradient(
     ellipse at center,
     var(--ambilight-center-color) 0%,
@@ -65,75 +85,78 @@ html, body {
   );
 }
 
-.ambilight-glow::before {
-  content: '';
-  position: absolute;
-  top: -50px;
-  left: -50px;
-  right: -50px;
-  bottom: -50px;
-  border-radius: 35px;
-  filter: blur(60px);
-  opacity: 0.8;
-  transition: all 0.1s ease;
-  transform-origin: center;
-  background: radial-gradient(
-    ellipse 200% 200% at 30% 30%,
-    var(--ambilight-top-color) 0%,
-    transparent 60%
-  ),
-  radial-gradient(
-    ellipse 200% 200% at 70% 30%,
-    var(--ambilight-right-color) 0%,
-    transparent 60%
-  ),
-  radial-gradient(
-    ellipse 200% 200% at 70% 70%,
-    var(--ambilight-bottom-color) 0%,
-    transparent 60%
-  ),
-  radial-gradient(
-    ellipse 200% 200% at 30% 70%,
-    var(--ambilight-left-color) 0%,
-    transparent 60%
-  );
+/* Упрощенные псевдоэлементы для мобильных */
+@media (min-width: 769px) {
+  .ambilight-glow::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: -50px;
+    right: -50px;
+    bottom: -50px;
+    border-radius: 35px;
+    filter: blur(60px);
+    opacity: 0.8;
+    transition: all 0.1s ease;
+    transform-origin: center;
+    background: radial-gradient(
+      ellipse 200% 200% at 30% 30%,
+      var(--ambilight-top-color) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 200% 200% at 70% 30%,
+      var(--ambilight-right-color) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 200% 200% at 70% 70%,
+      var(--ambilight-bottom-color) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 200% 200% at 30% 70%,
+      var(--ambilight-left-color) 0%,
+      transparent 60%
+    );
+  }
+
+  .ambilight-glow::after {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    border-radius: 30px;
+    filter: blur(40px);
+    opacity: 0.6;
+    transition: all 0.1s ease;
+    transform-origin: center;
+    background: radial-gradient(
+      ellipse 300% 300% at center,
+      var(--ambilight-center-color) 0%,
+      transparent 50%
+    );
+  }
 }
 
-.ambilight-glow::after {
-  content: '';
-  position: absolute;
-  top: -20px;
-  left: -20px;
-  right: -20px;
-  bottom: -20px;
-  border-radius: 30px;
-  filter: blur(40px);
-  opacity: 0.6;
-  transition: all 0.1s ease;
-  transform-origin: center;
-  background: radial-gradient(
-    ellipse 300% 300% at center,
-    var(--ambilight-center-color) 0%,
-    transparent 50%
-  );
-}
-
-/* Пульсация при басах */
+/* Пульсация при басах - оптимизировано */
 .bass-pulse {
   animation: bassPulse 0.15s ease-out;
 }
 
 @keyframes bassPulse {
   0% {
-    transform: scale(1);
+    transform: scale(1) translateZ(0);
     filter: blur(80px) brightness(1.2);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.05) translateZ(0);
     filter: blur(85px) brightness(1.7);
   }
   100% {
-    transform: scale(1);
+    transform: scale(1) translateZ(0);
     filter: blur(80px) brightness(1.2);
   }
 }
@@ -145,6 +168,9 @@ html, body {
   overflow: hidden;
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(10px);
+  /* GPU ускорение */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 #videoContainer {
@@ -156,6 +182,9 @@ html, body {
   background: #000;
   backdrop-filter: blur(10px);
   z-index: 2;
+  /* GPU ускорение */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 #introVideo {
@@ -164,13 +193,16 @@ html, body {
   object-fit: cover;
   border-radius: 25px;
   transition: opacity 0.3s ease-out;
+  /* GPU ускорение для видео */
+  will-change: opacity;
+  transform: translateZ(0);
 }
 
 /* Навигационные кнопки */
 .nav-button {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translateY(-50%) translateZ(0);
   width: 60px;
   height: 60px;
   border-radius: 50%;
@@ -189,17 +221,23 @@ html, body {
   backdrop-filter: blur(10px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
   user-select: none;
+  /* GPU ускорение */
+  will-change: transform, opacity;
+  
+  /* Улучшенное касание для мобильных */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .nav-button:hover {
   background: rgba(255, 255, 255, 0.9);
   color: #000;
-  transform: translateY(-50%) scale(1.1);
+  transform: translateY(-50%) scale(1.1) translateZ(0);
   box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6);
 }
 
 .nav-button:active {
-  transform: translateY(-50%) scale(0.95);
+  transform: translateY(-50%) scale(0.95) translateZ(0);
 }
 
 .nav-button.show {
@@ -210,12 +248,25 @@ html, body {
   opacity: 1;
 }
 
+#prevBtn, #nextBtn {
+  position: fixed; /* или absolute, если внутри общего контейнера */
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border: none;
+  padding: 15px;
+  cursor: pointer;
+  border-radius: 50%;
+  z-index: 999; /* выше видео */
+}
+
 #prevBtn {
-  left: -80px;
+  left: 420px;
 }
 
 #nextBtn {
-  right: -80px;
+  right: 420px;
 }
 
 /* Индикатор текущего видео */
@@ -223,12 +274,14 @@ html, body {
   position: absolute;
   top: 20px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(0);
   display: flex;
   gap: 8px;
   z-index: 15;
   opacity: 0;
   transition: opacity 0.3s ease;
+  /* GPU ускорение */
+  will-change: opacity;
 }
 
 .video-indicator.show {
@@ -242,17 +295,24 @@ html, body {
   background: rgba(255, 255, 255, 0.4);
   transition: all 0.3s ease;
   cursor: pointer;
+  /* GPU ускорение */
+  will-change: transform, background;
+  transform: translateZ(0);
+  
+  /* Улучшенное касание */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .indicator-dot.active {
   background: white;
-  transform: scale(1.3);
+  transform: scale(1.3) translateZ(0);
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
 }
 
 .indicator-dot:hover {
   background: rgba(255, 255, 255, 0.7);
-  transform: scale(1.1);
+  transform: scale(1.1) translateZ(0);
 }
 
 #loadingOverlay {
@@ -271,6 +331,9 @@ html, body {
   z-index: 20;
   transition: opacity 0.5s ease-out;
   border-radius: 25px;
+  /* GPU ускорение */
+  will-change: opacity;
+  transform: translateZ(0);
 }
 
 .spinner {
@@ -281,18 +344,21 @@ html, body {
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 20px;
+  /* GPU ускорение для анимации */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% { transform: rotate(0deg) translateZ(0); }
+  100% { transform: rotate(360deg) translateZ(0); }
 }
 
 #continueBtn {
   position: absolute;
   bottom: 30px;
   left: 50%;
-  transform: translateX(-50%) translateY(20px);
+  transform: translateX(-50%) translateY(20px) translateZ(0);
   padding: 15px 35px;
   font-size: 18px;
   font-weight: 600;
@@ -306,20 +372,26 @@ html, body {
   box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
   backdrop-filter: blur(10px);
   z-index: 3;
+  /* GPU ускорение */
+  will-change: transform, opacity;
+  
+  /* Улучшенное касание */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 #continueBtn:hover {
-  transform: translateX(-50%) translateY(15px) scale(1.05);
+  transform: translateX(-50%) translateY(15px) scale(1.05) translateZ(0);
   box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
 }
 
 #continueBtn:active {
-  transform: translateX(-50%) translateY(18px) scale(0.98);
+  transform: translateX(-50%) translateY(18px) scale(0.98) translateZ(0);
 }
 
 #continueBtn.show {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateX(-50%) translateY(0) translateZ(0);
 }
 
 .error-message {
@@ -334,6 +406,9 @@ html, body {
   text-align: center;
   color: white;
   padding: 40px;
+  /* GPU ускорение */
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .fallback-content h1 {
@@ -355,7 +430,7 @@ html, body {
   position: absolute;
   bottom: 90px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(0);
   width: 220px;
   height: 8px;
   -webkit-appearance: none;
@@ -366,6 +441,11 @@ html, body {
   box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
   cursor: pointer;
   z-index: 3;
+  /* GPU ускорение */
+  will-change: transform;
+  
+  /* Улучшенное касание */
+  touch-action: manipulation;
 }
 
 /* Ползунок (бегунок) */
@@ -380,10 +460,12 @@ html, body {
   box-shadow: 0 4px 10px rgba(102, 126, 234, 0.6);
   cursor: pointer;
   transition: transform 0.2s;
+  /* GPU ускорение */
+  will-change: transform;
 }
 
 #volumeSlider::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.2) translateZ(0);
 }
 
 /* Для Firefox */
@@ -396,10 +478,12 @@ html, body {
   box-shadow: 0 4px 10px rgba(102, 126, 234, 0.6);
   cursor: pointer;
   transition: transform 0.2s;
+  /* GPU ускорение */
+  will-change: transform;
 }
 
 #volumeSlider::-moz-range-thumb:hover {
-  transform: scale(1.2);
+  transform: scale(1.2) translateZ(0);
 }
 
 /* Индикатор басов */
@@ -407,11 +491,13 @@ html, body {
   position: absolute;
   bottom: 140px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(0);
   color: rgba(255, 255, 255, 0.7);
   font-size: 12px;
   z-index: 3;
   display: none;
+  /* GPU ускорение */
+  will-change: color, text-shadow;
 }
 
 .bass-active {
@@ -419,6 +505,7 @@ html, body {
   text-shadow: 0 0 10px #ff6ec4;
 }
 
+/* Мобильная оптимизация */
 @media (max-width: 768px) {
   #videoWrapper {
     width: 95%;
@@ -438,29 +525,15 @@ html, body {
     right: -65px;
   }
   
+  /* Упрощенный амбилайт для мобильных */
   .ambilight-glow {
     top: -50px;
     left: -50px;
     right: -50px;
     bottom: -50px;
     border-radius: 35px;
-    filter: blur(50px) brightness(1.2);
-  }
-  
-  .ambilight-glow::before {
-    top: -30px;
-    left: -30px;
-    right: -30px;
-    bottom: -30px;
-    filter: blur(40px);
-  }
-  
-  .ambilight-glow::after {
-    top: -10px;
-    left: -10px;
-    right: -10px;
-    bottom: -10px;
-    filter: blur(20px);
+    filter: blur(50px) brightness(1.1);
+    transition: all 0.2s ease;
   }
   
   #videoContainer {
@@ -484,17 +557,28 @@ html, body {
   .fallback-content h1 {
     font-size: 2em;
   }
+  
+  #volumeSlider {
+    width: 180px;
+    bottom: 80px;
+  }
+  
+  #bassIndicator {
+    bottom: 120px;
+    font-size: 10px;
+  }
 }
 
+/* Дополнительная оптимизация для слабых мобильных устройств */
 @media (max-width: 480px) {
   #prevBtn {
-    left: -20px;
-    top: 30%;
+    left: 10px;
+    top: 50%;
   }
 
   #nextBtn {
-    right: -20px;
-    top: 30%;
+    right: 10px;
+    top: 50%;
   }
 
   .nav-button {
@@ -502,18 +586,73 @@ html, body {
     height: 40px;
     font-size: 18px;
     background: rgba(0, 0, 0, 0.8);
+    transition: all 0.2s ease; /* Более быстрые переходы */
+  }
+  
+  /* Минимальный амбилайт для очень маленьких экранов */
+  .ambilight-glow {
+    top: -30px;
+    left: -30px;
+    right: -30px;
+    bottom: -30px;
+    filter: blur(30px) brightness(1.05);
+    transition: all 0.3s ease;
+  }
+  
+  /* Отключаем некоторые эффекты на очень слабых устройствах */
+  .ambilight-glow::before,
+  .ambilight-glow::after {
+    display: none;
+  }
+  
+  #volumeSlider {
+    width: 150px;
+    bottom: 70px;
+  }
+  
+  .indicator-dot {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .video-indicator {
+    gap: 6px;
   }
 }
 
-/* Анимация появления */
+/* Очень низкое качество для старых устройств */
+@media (max-width: 480px) and (max-height: 800px) {
+  /* Отключаем backdrop-filter для экономии ресурсов */
+  .shadow-container,
+  #videoContainer,
+  #continueBtn,
+  .nav-button {
+    backdrop-filter: none;
+  }
+  
+  /* Упрощенные тени */
+  .shadow-container {
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
+  }
+  
+  .nav-button {
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  }
+  
+  #continueBtn {
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+  }
+}
+
+/* Анимация появления - оптимизировано */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: scale(0.9);
+    transform: scale(0.95) translateZ(0);
   }
   to {
     opacity: 1;
-    transform: scale(1);
+    transform: scale(1) translateZ(0);
   }
 }
 
@@ -524,10 +663,29 @@ html, body {
 /* Анимация исчезновения */
 .fade-out {
   opacity: 0 !important;
-  transform: scale(1.1);
+  transform: scale(1.05) translateZ(0);
 }
 
 /* Анимация переключения видео */
 .video-fade-out {
   opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Оптимизация для устройств с низкой производительностью */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .ambilight-glow {
+    filter: blur(40px) brightness(1.1);
+    transition: none;
+  }
+  
+  .bass-pulse {
+    animation: none;
+  }
 }
