@@ -47,7 +47,7 @@ html, body {
 #videoWrapper {
   position: relative;
   width: 85%;
-  max-width: 1800px;
+  max-width: 1200px;
   aspect-ratio: 16/9;
   /* GPU ускорение */
   transform: translateZ(0);
